@@ -1,0 +1,19 @@
+name: multimodal_rag
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - langchain-openai==0.1.22
+    - langchain-community==0.0.38
+    - chromadb==0.5.5
+    - pillow==10.3.0
+    - python-dotenv==1.0.1
+    - volcenginesdkarkruntime==0.4.0
+    - markdown==3.6
+    - fastapi==0.110.0
+    - uvicorn==0.30.0
+    - pytest==8.2.0
+    - numpy==1.26.4
