@@ -13,6 +13,8 @@ from typing import List, Optional, Sequence
 from src.config.settings import Settings, get_settings
 from src.embeddings.multimodal_embeddings import MultimodalEmbeddings
 from src.llm.doubao_llm import DoubaoLLM, LLMBase
+from src.llm.deepseek_llm import DeepseekLLM
+from src.model.model_manager import LLMManager, EmbeddingsManager
 from src.retriever.chroma_store import ChromaStore
 
 
@@ -22,8 +24,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RAGPipeline:
     settings: Settings
-    embeddings: MultimodalEmbeddings
-    llm: LLMBase
+    embeddings_manager: EmbeddingsManager
+    llm_manager: LLMManager
     store: ChromaStore
 
     def run(self, query: str, image_base64: Optional[str] = None, top_k: Optional[int] = None) -> str:
@@ -33,16 +35,22 @@ class RAGPipeline:
         context = self._format_context(matches)
         prompt = self._build_prompt(query, context)
         images = [image_base64] if image_base64 else self._collect_image_context(matches)
-        return self.llm.generate(prompt, images=images)
+        return self.llm_manager.invoke((prompt, images))
 
     def _embed_query(self, query: str, image_base64: Optional[str]) -> List[float]:
         docs = [{"type": "text", "content": query, "source": "user-query"}]
         if image_base64:
             docs.append({"type": "image", "content": image_base64, "source": "user-image"})
-        vectors = self.embeddings.embed_documents(docs)
-        if not vectors:
-            return self.embeddings.zero_vector()
-        return _average_vectors(vectors)
+        try:
+            vectors = self.embeddings_manager.invoke(docs)
+            if not vectors:
+                # 获取第一个嵌入模型的零向量作为默认值
+                return self.embeddings_manager.models[0].zero_vector()
+            return _average_vectors(vectors)
+        except Exception as e:
+            logger.error("嵌入模型调用失败: %s", e)
+            # 使用第一个嵌入模型的零向量作为回退
+            return self.embeddings_manager.models[0].zero_vector()
 
     def _format_context(self, matches: Sequence) -> str:
         formatted = []
@@ -69,14 +77,30 @@ class RAGPipeline:
 
 def create_pipeline() -> RAGPipeline:
     settings = get_settings()
-    embeddings = MultimodalEmbeddings(settings)
-    llm = DoubaoLLM(settings)
-    store = ChromaStore(settings.paths.index_path, embeddings._dimension)  # type: ignore[attr-defined]
+    
+    # 创建嵌入模型列表
+    embeddings_models = [MultimodalEmbeddings(settings)]
+    embeddings_manager = EmbeddingsManager(embeddings_models, max_retries=1)
+    
+    # 创建LLM模型列表，支持多模型回退
+    llm_models = [DoubaoLLM(settings), DeepseekLLM(settings)]
+    llm_manager = LLMManager(llm_models, max_retries=1)
+    
+    # 获取嵌入维度（使用第一个模型的默认维度）
+    embedding_dim = embeddings_models[0].dimension
+    
+    store = ChromaStore(settings.paths.index_path, embedding_dim)
     try:
         store.load()
     except Exception as e:
         logger.warning("Failed to load ChromaDB index: %s. Run build_index first.", str(e))
-    return RAGPipeline(settings=settings, embeddings=embeddings, llm=llm, store=store)
+    
+    return RAGPipeline(
+        settings=settings, 
+        embeddings_manager=embeddings_manager, 
+        llm_manager=llm_manager, 
+        store=store
+    )
 
 
 def _average_vectors(vectors: Sequence[Sequence[float]]) -> List[float]:

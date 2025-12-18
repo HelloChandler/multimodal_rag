@@ -35,6 +35,7 @@ class ModelSettings:
     ark_api_key: str  # Ark API密钥
     ark_api_secret: str  # Ark API密钥对
     ark_region: str  # Ark服务区域
+    deepseek_api_key: str  # DeepSeek API密钥
     llm_model: str  # 大语言模型名称
     embed_model: str  # 嵌入模型名称
 
@@ -80,6 +81,7 @@ def get_settings() -> Settings:
         ark_api_key=_env("ARK_API_KEY", ""),
         ark_api_secret=_env("ARK_API_SECRET", ""),
         ark_region=_env("ARK_REGION", "cn-beijing"),
+        deepseek_api_key=_env("DEEPSEEK_API_KEY", ""),
         llm_model=_env("DOUBAO_LLM_MODEL", "doubao-seed-1-6-vision-250815"),
         embed_model=_env("DOUBAO_EMBED_MODEL", "doubao-embedding-vision-250615"),
     )

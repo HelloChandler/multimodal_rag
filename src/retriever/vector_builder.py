@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from src.config.settings import Settings
 from src.embeddings.multimodal_embeddings import MultimodalEmbeddings
+from src.model.model_manager import EmbeddingsManager
 from src.utils.file_utils import DocumentPayload, ImagePayload, parse_markdown_documents
 from src.utils.text_utils import split_markdown
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def build_chroma_from_markdown(
     settings: Settings,
-    embeddings: MultimodalEmbeddings,
+    embeddings: Union[MultimodalEmbeddings, EmbeddingsManager],
     chunk_size: int,
     overlap: int,
     source_dir: Optional[Path] = None,
@@ -31,7 +32,13 @@ def build_chroma_from_markdown(
     origin_dir = source_dir or settings.paths.raw_data
     documents = parse_markdown_documents(origin_dir, settings.paths.raw_data)
     payloads = _to_embedding_payloads(documents, chunk_size, overlap, settings.paths.processed_data)
-    vectors = embeddings.embed_documents(payloads)
+    
+    # 根据类型调用相应的嵌入方法
+    if isinstance(embeddings, EmbeddingsManager):
+        vectors = embeddings.invoke(payloads)
+    else:
+        vectors = embeddings.embed_documents(payloads)
+    
     if not vectors:
         logger.warning("No vectors generated from documents")
         return

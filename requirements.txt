@@ -1,12 +1,14 @@
-langchain-openai==0.1.22
-langchain-community==0.0.38
-chromadb==0.5.5
+langchain-openai~=1.0.2
+langchain-community~=0.2.0
+chromadb==0.7.0
 pillow==10.3.0
 python-dotenv==1.0.1
-volcenginesdkarkruntime==0.4.0
+volcengine-python-sdk[ark]~=1.0.0
 markdown==3.6
 fastapi==0.110.0
 uvicorn==0.30.0
 pytest==8.2.0
 numpy==1.26.4
+aiohttp==3.9.3
+pyyaml~=6.0
 

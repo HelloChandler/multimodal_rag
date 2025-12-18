@@ -12,6 +12,7 @@ from pathlib import Path
 
 from src.config.settings import get_settings
 from src.embeddings.multimodal_embeddings import MultimodalEmbeddings
+from src.model.model_manager import EmbeddingsManager
 from src.retriever.vector_builder import build_chroma_from_markdown
 
 
@@ -35,8 +36,10 @@ def main() -> None:
     source_dir = Path(args.source).resolve() if args.source else settings.paths.raw_data
     if not source_dir.exists():
         raise FileNotFoundError(f"Source directory not found: {source_dir}")
-    embeddings = MultimodalEmbeddings(settings)
-    build_chroma_from_markdown(settings, embeddings, chunk_size, overlap, source_dir=source_dir)
+    # 使用EmbeddingsManager确保索引构建过程也能利用模型回退机制
+    embeddings_models = [MultimodalEmbeddings(settings)]
+    embeddings_manager = EmbeddingsManager(embeddings_models, max_retries=1)
+    build_chroma_from_markdown(settings, embeddings_manager, chunk_size, overlap, source_dir=source_dir)
     logger.info("Index build complete")
 
 

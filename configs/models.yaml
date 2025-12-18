@@ -1,0 +1,117 @@
+# 模型集成框架配置文件
+# 支持多种AI模型的配置和灵活的调用策略
+
+# 通用配置
+general:
+  default_timeout: 30  # 默认请求超时时间（秒）
+  max_retries: 2       # 默认最大重试次数
+  enable_async: true   # 是否启用异步调用
+
+# 模型配置列表
+models:
+  # 示例：豆包多模态模型
+  doubao:
+    type: llm  # 模型类型：llm（大语言模型）或 embedding（嵌入模型）
+    name: doubao-seed-1-6-vision-250815
+    api_key: ${ARK_API_KEY}  # 从环境变量获取
+    api_secret: ${ARK_API_SECRET}  # 从环境变量获取
+    base_url: https://ark.cn-beijing.volces.com/api/v3  # 可选，模型API基础URL
+    region: ${ARK_REGION:cn-beijing}  # 从环境变量获取，默认值为cn-beijing
+    interface_type: openai  # 接口类型：openai（默认）、anthropic、google等
+    parameter_mapping:  # 参数映射关系，将统一参数映射到模型特定参数
+      temperature: temperature
+      max_tokens: max_tokens
+    response_format:  # 响应格式映射，将模型响应映射到统一格式
+      content: choices[0].message.content
+      model: model
+    parameters:  # 可选参数
+      temperature: 0.7
+      max_tokens: 2000
+
+  # 示例：DeepSeek V3.2多模态模型
+  deepseek:
+    type: llm
+    name: deepseek-vl-1.5-chat
+    api_key: ${DEEPSEEK_API_KEY}
+    base_url: https://api.deepseek.com/chat/completions
+    interface_type: openai
+    parameter_mapping:
+      temperature: temperature
+      max_tokens: max_tokens
+    response_format:
+      content: choices[0].message.content
+      model: model
+    parameters:
+      temperature: 0.7
+      max_tokens: 2000
+
+  # 示例：豆包嵌入模型
+  doubao-embedding:
+    type: embedding
+    name: doubao-embedding-vision-250615
+    api_key: ${ARK_API_KEY}
+    api_secret: ${ARK_API_SECRET}
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+    region: ${ARK_REGION:cn-beijing}
+    interface_type: openai
+    parameter_mapping:
+      input: input
+      model: model
+    response_format:
+      embedding: data.embedding
+      model: model
+    parameters:
+      dimension: 1024
+
+  # 示例：自定义参数映射的OpenAI兼容模型
+  custom-openai:
+    type: llm
+    name: custom-gpt-model
+    api_key: ${CUSTOM_API_KEY}
+    base_url: https://api.custom.com/v1/chat/completions
+    interface_type: openai
+    parameter_mapping:
+      temperature: temp
+      top_p: top_probability
+      max_tokens: max_length
+    response_format:
+      content: data.response.content
+      model: data.model
+    parameters:
+      temperature: 0.7
+      max_tokens: 2000
+
+# 回退策略配置
+fallback:
+  llm:
+    order: [doubao, deepseek]  # 调用顺序，按优先级从高到低
+    strategy: sequential  # 回退策略：sequential（顺序）或 random（随机）
+    retry_on_failure: true  # 失败时是否重试
+    max_retries_per_model: 1  # 每个模型的最大重试次数
+
+  embedding:
+    order: [doubao-embedding]  # 嵌入模型调用顺序
+    strategy: sequential
+    retry_on_failure: true
+    max_retries_per_model: 1
+
+# 缓存配置
+caching:
+  enabled: true  # 是否启用缓存
+  type: memory  # 缓存类型：memory（内存）或 redis
+  ttl: 3600  # 缓存过期时间（秒）
+  max_size: 1000  # 最大缓存条目数
+  # Redis配置（当type为redis时需要）
+  # redis:
+  #   host: localhost
+  #   port: 6379
+  #   db: 0
+
+# 日志配置
+logging:
+  level: INFO  # 日志级别：DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: logs/model_integration.log  # 日志文件路径
+  rotate: true  # 是否启用日志轮转
+  max_bytes: 10485760  # 单个日志文件最大大小（10MB）
+  backup_count: 5  # 保留的日志文件数量

@@ -8,22 +8,21 @@ from __future__ import annotations
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
-
-from volcenginesdkarkruntime import AsyncArk
+from typing import Any, Dict, List, Optional
+ 
+from volcengine.arkruntime import AsyncArk
 
 from src.config.settings import Settings
+from src.model.unified_interface import UnifiedLLM
+
+# Define LLMBase as an alias for UnifiedLLM for backward compatibility
+LLMBase = UnifiedLLM
 
 
 logger = logging.getLogger(__name__)
 
 
-class LLMBase(ABC):
-    @abstractmethod
-    def generate(self, prompt: str, images: Optional[List[str]] = None) -> str: ...
-
-
-class DoubaoLLM(LLMBase):
+class DoubaoLLM(UnifiedLLM):
     def __init__(self, settings: Settings):
         self.settings = settings
         self._client = AsyncArk(
@@ -32,12 +31,29 @@ class DoubaoLLM(LLMBase):
             region=settings.models.ark_region,
         )
 
-    def generate(self, prompt: str, images: Optional[List[str]] = None) -> str:
-        return asyncio.run(self._generate_async(prompt, images or []))
+    def get_model_info(self) -> Dict[str, Any]:
+        return {
+            "name": self.settings.models.llm_model,
+            "type": "llm",
+            "provider": "doubao",
+            "version": "v1"
+        }
 
-    async def _generate_async(self, prompt: str, images: List[str]) -> str:
+    def health_check(self) -> bool:
+        try:
+            # 简单的健康检查，尝试生成一个短响应
+            response = self.generate("Hello, are you there?", max_tokens=5)
+            return response and "抱歉" not in response
+        except Exception as e:
+            logger.error("Health check failed: %s", e)
+            return False
+
+    def generate(self, prompt: str, images: Optional[List[str]] = None, **kwargs) -> str:
+        return asyncio.run(self.generate_async(prompt, images or [], **kwargs))
+
+    async def generate_async(self, prompt: str, images: Optional[List[str]] = None, **kwargs) -> str:
         contents: List[Any] = [{"type": "text", "text": prompt}]
-        for img in images:
+        for img in images or []:
             contents.append({"type": "image", "image_base64": img})
 
         request = {
@@ -48,6 +64,7 @@ class DoubaoLLM(LLMBase):
                     "content": contents,
                 }
             ],
+            **kwargs
         }
 
         try:
@@ -55,7 +72,27 @@ class DoubaoLLM(LLMBase):
             return _extract_text(response)
         except Exception as exc:  # noqa: BLE001
             logger.warning("LLM generation failed: %s", exc)
-            return "抱歉，当前无法生成回答，请稍后再试。"
+            raise
+
+    def chat(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
+        return asyncio.run(self.chat_async(messages, **kwargs))
+
+    async def chat_async(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
+        try:
+            request = {
+                "model": self.settings.models.llm_model,
+                "messages": messages,
+                **kwargs
+            }
+            response = await self._client.create_chat_completion(**request)
+            return {
+                "message": response.choices[0].message,
+                "model": response.model,
+                "usage": response.usage
+            }
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("LLM chat failed: %s", exc)
+            raise
 
 
 def _extract_text(response: Any) -> str:

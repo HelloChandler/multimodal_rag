@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 from langchain.embeddings.base import Embeddings
-from volcenginesdkarkruntime import AsyncArk
+from volcengine.arkruntime import AsyncArk
 
 from src.config.settings import Settings
 
