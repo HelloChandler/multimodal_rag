@@ -334,9 +334,9 @@ class ConfigManager:
         if path.startswith("$") and len(path) > 1 and not path.startswith("$.") and not path.startswith("$["):
             raise ConfigError(f"模型 {model_name} 的响应格式路径根前缀格式错误: {key} -> {path}")
         
-        # 检查是否包含非法字符（允许$ . [ ]数字）
+        # 检查是否包含非法字符（允许字母、数字、$、.、_、[、]）
         import re
-        if not re.match(r'^\$?(?:\\.|[^!@#$%^&*()+=|{};:"]<>?)+', path):
+        if not re.match(r'^[a-zA-Z0-9$._\[\]]+$', path):
             raise ConfigError(f"模型 {model_name} 的响应格式路径包含非法字符: {key} -> {path}")
         
         # 验证括号匹配

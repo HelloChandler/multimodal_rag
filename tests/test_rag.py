@@ -46,6 +46,7 @@ def make_settings(tmp_path: Path) -> Settings:
         ark_api_key="k",
         ark_api_secret="s",
         ark_region="cn",
+        deepseek_api_key="",
         llm_model="llm",
         embed_model="emb",
     )

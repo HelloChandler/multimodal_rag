@@ -1,6 +1,7 @@
-langchain-openai~=1.0.2
-langchain-community~=0.2.0
-chromadb==0.7.0
+langchain
+langchain-openai
+langchain-community
+chromadb==0.5.4
 pillow==10.3.0
 python-dotenv==1.0.1
 volcengine-python-sdk[ark]~=1.0.0
@@ -9,6 +10,6 @@ fastapi==0.110.0
 uvicorn==0.30.0
 pytest==8.2.0
 numpy==1.26.4
-aiohttp==3.9.3
+aiohttp==3.12.14
 pyyaml~=6.0
 

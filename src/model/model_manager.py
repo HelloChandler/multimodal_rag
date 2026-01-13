@@ -179,10 +179,24 @@ class ModelManager:
         )
         return await self._invoke_embeddings_model_async(request)
 
-    def _invoke_llm_model(
+    def invoke_llm_model(
         self, request: ModelRequest, chat_mode: bool = False
     ) -> ModelResponse:
         """同步调用LLM模型并实现回退策略。
+
+        参数：
+            request: 模型请求对象
+            chat_mode: 是否使用聊天模式
+
+        返回：
+            包含生成结果的统一响应对象
+        """
+        return asyncio.run(self._invoke_llm_model_async(request, chat_mode))
+    
+    def _invoke_llm_model(
+        self, request: ModelRequest, chat_mode: bool = False
+    ) -> ModelResponse:
+        """同步调用LLM模型并实现回退策略（内部方法）。
 
         参数：
             request: 模型请求对象
@@ -508,9 +522,83 @@ def reload_model_manager() -> None:
     _model_manager = None
     init_model_manager()
 
+class LLMManager:
+    """LLM模型管理器，负责管理多个LLM模型并实现回退策略。
+    
+    参数：
+        models: LLM模型列表
+        max_retries: 每个模型的最大重试次数
+    """
+    
+    def __init__(self, models: List[LLMBase], max_retries: int = 1):
+        self.models = models
+        self.max_retries = max_retries
+    
+    def invoke(self, prompt_payload: tuple[str, List[str]]):
+        """调用LLM模型生成文本。
+        
+        参数：
+            prompt_payload: 包含提示文本和图片列表的元组
+            
+        返回：
+            生成的文本结果
+            
+        抛出：
+            Exception: 所有模型调用失败时
+        """
+        prompt, images = prompt_payload
+        
+        for model in self.models:
+            for retry in range(self.max_retries + 1):
+                try:
+                    if images:
+                        return model.generate(prompt, images)
+                    else:
+                        return model.generate(prompt)
+                except Exception as e:
+                    logger.warning(f"模型 {model.__class__.__name__} 调用失败 (第{retry+1}次): {e}")
+        
+        raise Exception("所有LLM模型调用失败")
+
+
+class EmbeddingsManager:
+    """嵌入模型管理器，负责管理多个嵌入模型并实现回退策略。
+    
+    参数：
+        models: 嵌入模型列表
+        max_retries: 每个模型的最大重试次数
+    """
+    
+    def __init__(self, models: List[MultimodalEmbeddings], max_retries: int = 1):
+        self.models = models
+        self.max_retries = max_retries
+    
+    def invoke(self, documents: List[Dict[str, Any]]):
+        """调用嵌入模型生成向量。
+        
+        参数：
+            documents: 文档列表，每个文档包含类型、内容和来源
+            
+        返回：
+            生成的向量列表
+            
+        抛出：
+            Exception: 所有模型调用失败时
+        """
+        for model in self.models:
+            for retry in range(self.max_retries + 1):
+                try:
+                    return model.get_embeddings(documents)
+                except Exception as e:
+                    logger.warning(f"模型 {model.__class__.__name__} 调用失败 (第{retry+1}次): {e}")
+        
+        raise Exception("所有嵌入模型调用失败")
+
 
 __all__ = [
     "ModelManager",
+    "LLMManager",
+    "EmbeddingsManager",
     "get_model_manager",
     "init_model_manager",
     "reload_model_manager"

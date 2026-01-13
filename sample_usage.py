@@ -21,20 +21,19 @@ def demo_sync_model_invoke():
     # 创建模型管理器
     manager = ModelManager()
     
-    # 创建请求
-    request = ModelRequest(
-        prompt="请解释什么是人工智能？",
-        parameters={"temperature": 0.7, "max_tokens": 500}
-    )
-    
     # 调用模型
-    response = manager.invoke_llm_model(request)
+    response = manager.generate_completion(
+        prompt="请解释什么是人工智能？",
+        temperature=0.7,
+        max_tokens=500
+    )
     
     # 打印结果
     if response.is_success:
         logger.info(f"成功调用模型: {response.model_name}")
         logger.info(f"响应内容: {response.content[:200]}...")
-        logger.info(f"调用耗时: {response.duration_ms}ms")
+        if "duration" in response.metadata:
+            logger.info(f"调用耗时: {response.metadata['duration']:.2f}秒")
     else:
         logger.error(f"模型调用失败: {response.error_message}")
     
@@ -47,20 +46,19 @@ async def demo_async_model_invoke():
     # 创建模型管理器
     manager = ModelManager()
     
-    # 创建请求
-    request = ModelRequest(
-        prompt="请解释什么是机器学习？",
-        parameters={"temperature": 0.7, "max_tokens": 500}
-    )
-    
     # 异步调用模型
-    response = await manager._invoke_llm_model_async(request)
+    response = await manager.generate_completion_async(
+        prompt="请解释什么是机器学习？",
+        temperature=0.7,
+        max_tokens=500
+    )
     
     # 打印结果
     if response.is_success:
         logger.info(f"成功调用模型: {response.model_name}")
         logger.info(f"响应内容: {response.content[:200]}...")
-        logger.info(f"调用耗时: {response.duration_ms}ms")
+        if "duration" in response.metadata:
+            logger.info(f"调用耗时: {response.metadata['duration']:.2f}秒")
     else:
         logger.error(f"模型调用失败: {response.error_message}")
     
@@ -73,13 +71,17 @@ def demo_health_check():
     # 创建模型管理器
     manager = ModelManager()
     
-    # 获取所有LLM模型
-    llm_models = manager.get_all_llm_models()
+    # 从配置中获取模型列表
+    from src.config.config_manager import get_model_integration_config
+    config = get_model_integration_config()
     
-    for model_name, model in llm_models.items():
+    # 获取所有模型名称
+    all_model_names = list(config.models.keys())
+    
+    for model_name in all_model_names:
         try:
-            is_healthy = model.health_check()
-            model_info = model.get_model_info()
+            is_healthy = manager.health_check(model_name)
+            model_info = manager.get_model_info(model_name)
             status = "健康" if is_healthy else "不健康"
             logger.info(f"模型 {model_name} ({model_info['name']}): {status}")
         except Exception as e:
@@ -89,20 +91,10 @@ def demo_config_reload():
     """演示配置重新加载。"""
     logger.info("\n=== 演示配置重新加载 ===")
     
-    # 创建模型管理器
-    manager = ModelManager()
-    
-    # 初始模型数量
-    initial_llm_count = len(manager.get_all_llm_models())
-    logger.info(f"初始LLM模型数量: {initial_llm_count}")
-    
-    # 重新加载配置
-    success = manager.reload_config()
-    if success:
-        new_llm_count = len(manager.get_all_llm_models())
-        logger.info(f"配置重新加载成功，新的LLM模型数量: {new_llm_count}")
-    else:
-        logger.error("配置重新加载失败")
+    # 重新加载模型管理器
+    from src.model.model_manager import reload_model_manager
+    reload_model_manager()
+    logger.info("配置重新加载成功")
 
 if __name__ == "__main__":
     logger.info("=== 模型集成框架演示开始 ===")

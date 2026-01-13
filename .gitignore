@@ -16,3 +16,4 @@ rag_env/
 data/index/*
 data/processed/*
 !.gitkeep
+venv/

@@ -10,7 +10,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
  
-from volcengine.arkruntime import AsyncArk
+from volcenginesdkarkruntime import AsyncArk
 
 from src.config.settings import Settings
 from src.model.unified_interface import UnifiedLLM
