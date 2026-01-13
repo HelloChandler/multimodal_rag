@@ -68,8 +68,21 @@ class DoubaoLLM(UnifiedLLM):
         }
 
         try:
-            response = await self._client.create_chat_completion(**request)
-            return _extract_text(response)
+            # 使用post方法发送请求到聊天完成API端点
+            # 注意：AsyncArk客户端会自动添加api/v3前缀，所以只需指定相对路径
+            response = await self._client.post(
+                "chat/completions",
+                body=request,
+                cast_to=dict  # 使用dict类型作为响应类型
+            )
+            
+            # 检查响应状态
+            if response.status_code != 200:
+                raise Exception(f"API请求失败，状态码: {response.status_code}, 响应: {response.text}")
+            
+            # 解析响应
+            response_data = response.json()
+            return _extract_text(response_data)
         except Exception as exc:  # noqa: BLE001
             logger.warning("LLM generation failed: %s", exc)
             raise
@@ -84,11 +97,25 @@ class DoubaoLLM(UnifiedLLM):
                 "messages": messages,
                 **kwargs
             }
-            response = await self._client.create_chat_completion(**request)
+            # 使用post方法发送请求到聊天完成API端点
+            # 注意：AsyncArk客户端会自动添加api/v3前缀，所以只需指定相对路径
+            response = await self._client.post(
+                "chat/completions",
+                body=request,
+                cast_to=dict  # 使用dict类型作为响应类型
+            )
+            
+            # 检查响应状态
+            if response.status_code != 200:
+                raise Exception(f"API请求失败，状态码: {response.status_code}, 响应: {response.text}")
+            
+            # 解析响应
+            response_data = response.json()
+            
             return {
-                "message": response.choices[0].message,
-                "model": response.model,
-                "usage": response.usage
+                "message": response_data.get("choices", [{}])[0].get("message"),
+                "model": response_data.get("model"),
+                "usage": response_data.get("usage")
             }
         except Exception as exc:  # noqa: BLE001
             logger.warning("LLM chat failed: %s", exc)

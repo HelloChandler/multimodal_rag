@@ -590,7 +590,7 @@ class EmbeddingsManager:
         for model in self.models:
             for retry in range(self.max_retries + 1):
                 try:
-                    return model.get_embeddings(documents)
+                    return model.embed_documents(documents)
                 except Exception as e:
                     logger.warning(f"模型 {model.__class__.__name__} 调用失败 (第{retry+1}次): {e}")
         

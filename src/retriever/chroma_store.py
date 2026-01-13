@@ -38,11 +38,9 @@ class ChromaStore:
         self.dimension = dimension
         self.collection_name = "multimodal_embeddings"
         
-        # 初始化ChromaDB客户端
-        self.client = chromadb.PersistentClient(
-            path=str(index_path.parent),
+        # 初始化ChromaDB客户端（使用新的配置方式）
+        self.client = chromadb.Client(
             settings=ChromaSettings(
-                chroma_db_impl="duckdb+parquet",
                 persist_directory=str(index_path.parent)
             )
         )

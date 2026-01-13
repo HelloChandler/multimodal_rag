@@ -49,11 +49,8 @@ class MultimodalEmbeddings(Embeddings):
             settings: 包含嵌入模型配置的应用程序设置
         """
         self.settings = settings
-        self._client = AsyncArk(
-            ak=settings.models.ark_api_key,
-            sk=settings.models.ark_api_secret,
-            region=settings.models.ark_region,
-        )
+        # 初始化AsyncArk客户端
+        self._client = AsyncArk()
         self._dimension = DEFAULT_DIM  # 默认维度（遵循data_processing规范）
 
     def embed_query(self, text: str) -> List[float]:
@@ -139,27 +136,44 @@ class MultimodalEmbeddings(Embeddings):
             - UTF-8编码兼容
             - 带日志记录的错误处理
         """
+        # 构建请求负载
         payload = {
             "model": self.settings.models.embed_model,
             "input": [
-                {"type": doc.get("type", "text"),  # 如果未指定类型，则默认为文本
-                    "content": doc.get("content", ""),  # 如果未指定内容，则为空字符串
+                {
+                    "type": doc.get("type", "text"),
+                    "content": doc.get("content", "")
                 }
-            ],
+            ]
         }
         
         try:
-            # 使用AsyncArk客户端生成嵌入向量
-            response = await self._client.create_embedding(**payload)
+            # 使用AsyncArk客户端发送POST请求到嵌入API端点
+            # 注意：AsyncArk客户端会自动添加api/v3前缀，所以只需指定相对路径
+            response = await self._client.post(
+                "embeddings",
+                body=payload,
+                cast_to=dict  # 使用dict类型作为响应类型
+            )
+            
+            # 检查响应状态
+            if response.status_code != 200:
+                logger.warning(f"嵌入API请求失败，状态码: {response.status_code}, 响应: {response.text}")
+                return None
+            
+            # 解析响应
+            response_data = response.json()
             
             # 从响应中提取嵌入向量
-            data = _extract_embedding(response)
-            if data is None:
-                raise ValueError("Empty embedding response")
+            embedding = _extract_embedding(response_data)
+            if embedding is None:
+                logger.warning("嵌入API返回了空的嵌入向量")
+                return None
             
-            return data
+            logger.info(f"成功生成嵌入向量，维度: {len(embedding)}")
+            return embedding
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Embedding failed for %s: %s", doc.get("source", "unknown"), exc)
+            logger.warning(f"嵌入生成失败: {exc}")
             return None
 
     def _zero_vector(self) -> List[float]:
