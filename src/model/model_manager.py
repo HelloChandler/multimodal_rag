@@ -11,6 +11,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from src.config.config_manager import get_model_integration_config
+from src.embeddings.multimodal_embeddings import MultimodalEmbeddings
+from src.llm.doubao_llm import LLMBase
 from src.model.model_factory import get_model_factory
 from src.model.unified_interface import (
     ModelRequest,
